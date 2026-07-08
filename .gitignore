@@ -11,3 +11,10 @@ developer_key.der
 *.iq
 .vscode/
 gen/
+
+# Stray compiler output / intermediates
+*.prg
+*.prg.debug.xml
+*.mir
+internal-mir/
+mir/

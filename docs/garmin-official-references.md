@@ -10,6 +10,8 @@ Use these before changing APIs, manifest settings, persistence, timers, input, o
 - Repeating timers: <https://developer.garmin.com/connect-iq/api-docs/Toybox/Timer/Timer.html>
 - Attention and vibration entry point: <https://developer.garmin.com/connect-iq/api-docs/Toybox/Attention.html>
 - Vibration profile shape: <https://developer.garmin.com/connect-iq/api-docs/Toybox/Attention/VibeProfile.html>
+- Activity recording (FIT sessions): <https://developer.garmin.com/connect-iq/api-docs/Toybox/ActivityRecording.html>
+- Sport and sub-sport constants: <https://developer.garmin.com/connect-iq/api-docs/Toybox/Activity.html>
 - Compatible device matrix: <https://developer.garmin.com/connect-iq/compatible-devices/>
 
 Notes from the official docs used in this implementation:
