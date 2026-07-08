@@ -4,7 +4,7 @@ Offline Connect IQ watch app for building and running custom pranayama and medit
 
 ## Features
 
-- **One press to practice** — the home screen is a quick-start card showing your last-used session; START begins it, UP/DOWN switches practices, MENU manages them.
+- **One press to practice** — the home screen is a quick-start carousel showing your last-used session; START begins it, UP/DOWN moves between practices, and a trailing "Manage" card handles create/edit/delete (no MENU button required — the FR265 doesn't have one).
 - **Session builder** — pick from five activities (Anulom Vilom, Bhramari, Bhastrika, Kapalbhati, Meditation), order them, and tune each one's timing and repetitions. New sessions are auto-named from their contents.
 - **Eyes-closed haptic language** — one short pulse for inhale, two quick pulses for hold, one long pulse for exhale, silence for pause. The whole session runs without looking at the screen.
 - **Breath-paced ring** — the bezel ring fills as you inhale, holds full, and drains as you exhale; timed activities count down.

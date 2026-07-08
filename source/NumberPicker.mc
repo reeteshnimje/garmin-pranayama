@@ -65,7 +65,7 @@ class NumberPickerView extends WatchUi.View {
         }
 
         dc.setColor(UiConstants.MUTED, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.83, Graphics.FONT_XTINY, "UP +   DOWN -   START OK",
+        dc.drawText(cx, h * 0.78, Graphics.FONT_XTINY, "UP/DOWN  START saves",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 }

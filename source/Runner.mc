@@ -322,11 +322,11 @@ class RunnerView extends WatchUi.View {
             SessionMath.formatDuration(totalRemaining) + " left",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        var hint = "START pause";
+        var hint = "START pauses";
         if (paused) {
-            hint = "START resume - BACK end";
+            hint = "BACK ends";
         }
-        dc.drawText(cx, h * 0.85, Graphics.FONT_XTINY, hint,
+        dc.drawText(cx, h * 0.80, Graphics.FONT_XTINY, hint,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
@@ -347,7 +347,7 @@ class RunnerView extends WatchUi.View {
         dc.drawText(cx, h * 0.68, Graphics.FONT_TINY, finalStreakText,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        dc.drawText(cx, h * 0.84, Graphics.FONT_XTINY, "BACK to exit",
+        dc.drawText(cx, h * 0.80, Graphics.FONT_XTINY, "BACK to exit",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 

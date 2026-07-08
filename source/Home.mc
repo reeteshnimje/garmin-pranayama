@@ -1,8 +1,9 @@
 using Toybox.WatchUi;
 using Toybox.Graphics;
 
-// Quick-start card: the last-used practice is one START press away.
-// UP/DOWN cycles saved sessions, MENU opens management.
+// Quick-start carousel. UP/DOWN moves between practice cards; the final card
+// is "Manage" (create / edit / delete). START acts on the current card.
+// The FR265 has no MENU button, so everything is reachable with UP/DOWN/START.
 class HomeCardView extends WatchUi.View {
     var sessions;
     var index;
@@ -33,12 +34,22 @@ class HomeCardView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
+    // Total cards = every session plus one trailing "Manage" card.
+    function cardCount() {
+        return sessions.size() + 1;
+    }
+
+    function onManageCard() {
+        return index >= sessions.size();
+    }
+
     function cycle(delta) {
-        if (sessions.size() > 1) {
-            index = (index + delta + sessions.size()) % sessions.size();
+        var count = cardCount();
+        index = (index + delta + count) % count;
+        if (!onManageCard()) {
             SessionStore.setLastSession(sessions[index]["id"]);
-            WatchUi.requestUpdate();
         }
+        WatchUi.requestUpdate();
     }
 
     function current() {
@@ -52,7 +63,6 @@ class HomeCardView extends WatchUi.View {
         var w = dc.getWidth();
         var h = dc.getHeight();
         var cx = w / 2;
-        var cy = h / 2;
 
         dc.setColor(UiConstants.FG, UiConstants.BG);
         dc.clear();
@@ -61,54 +71,64 @@ class HomeCardView extends WatchUi.View {
             dc.setAntiAlias(true);
         }
 
-        dc.setPenWidth(4);
-        dc.setColor(UiConstants.RING_BG, Graphics.COLOR_TRANSPARENT);
-        dc.drawCircle(cx, cy, (w / 2) - 4);
-
-        var session = current();
-        if (session == null) {
-            dc.setColor(UiConstants.FG, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 0.36, Graphics.FONT_MEDIUM, "No practices",
-                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            dc.setColor(UiConstants.MUTED, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 0.52, Graphics.FONT_TINY, "Create your first one",
-                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            dc.drawText(cx, h * 0.84, Graphics.FONT_XTINY, "START to create",
-                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            return;
+        if (onManageCard()) {
+            drawManageCard(dc, w, h, cx);
+        } else {
+            drawSessionCard(dc, w, h, cx, sessions[index]);
         }
 
-        dc.setColor(UiConstants.MUTED, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.16, Graphics.FONT_TINY, History.streakText(),
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawDots(dc, w, h, cx);
+    }
 
+    function drawSessionCard(dc, w, h, cx, session) {
         dc.setColor(UiConstants.FG, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.33, Graphics.FONT_MEDIUM, session["name"],
+        dc.drawText(cx, h * 0.34, Graphics.FONT_MEDIUM, session["name"],
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         dc.setColor(UiConstants.ACCENT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.50, Graphics.FONT_NUMBER_MEDIUM,
+        dc.drawText(cx, h * 0.52, Graphics.FONT_NUMBER_MEDIUM,
             SessionMath.formatDuration(SessionMath.durationForSession(session)),
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         dc.setColor(UiConstants.MUTED, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.66, Graphics.FONT_TINY, activitySummary(session),
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        dc.drawText(cx, h * 0.84, Graphics.FONT_XTINY, "START begin - MENU manage",
+        dc.drawText(cx, h * 0.68, Graphics.FONT_XTINY, "START to begin",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    function activitySummary(session) {
-        var activities = session["activities"];
-        var text = "";
-        for (var i = 0; i < activities.size(); i += 1) {
-            if (i > 0) {
-                text += " - ";
-            }
-            text += ActivityTypes.shortName(activities[i]["type"]);
+    function drawManageCard(dc, w, h, cx) {
+        var hasSessions = sessions.size() > 0;
+
+        dc.setColor(UiConstants.ACCENT, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 0.40, Graphics.FONT_MEDIUM,
+            hasSessions ? "Manage" : "Create",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+
+        dc.setColor(UiConstants.MUTED, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 0.56, Graphics.FONT_XTINY,
+            hasSessions ? "Edit or add practices" : "Add your first practice",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // Pagination dots at the wide center-bottom, so nothing clips the bezel.
+    function drawDots(dc, w, h, cx) {
+        var count = cardCount();
+        if (count <= 1 || count > 8) {
+            return;
         }
-        return text;
+
+        var spacing = 16;
+        var startX = cx - ((count - 1) * spacing) / 2;
+        var y = h * 0.80;
+
+        for (var i = 0; i < count; i += 1) {
+            if (i == index) {
+                dc.setColor(UiConstants.ACCENT, Graphics.COLOR_TRANSPARENT);
+                dc.fillCircle(startX + (i * spacing), y, 4);
+            } else {
+                dc.setColor(UiConstants.RING_BG, Graphics.COLOR_TRANSPARENT);
+                dc.fillCircle(startX + (i * spacing), y, 3);
+            }
+        }
     }
 }
 
@@ -121,20 +141,28 @@ class HomeCardDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onSelect() {
-        var session = view.current();
-        if (session == null) {
-            var state = new BuilderState(null);
-            var pick = new ActivityPickMenu(state);
-            WatchUi.pushView(pick, new ActivityPickDelegate(pick, state), WatchUi.SLIDE_UP);
+        if (view.onManageCard()) {
+            openManage();
         } else {
-            var runner = new RunnerView(session);
+            var runner = new RunnerView(view.current());
             WatchUi.pushView(runner, new RunnerDelegate(runner), WatchUi.SLIDE_UP);
         }
         return true;
     }
 
+    function openManage() {
+        if (view.sessions.size() == 0) {
+            var state = new BuilderState(null);
+            var pick = new ActivityPickMenu(state);
+            WatchUi.pushView(pick, new ActivityPickDelegate(pick, state), WatchUi.SLIDE_UP);
+        } else {
+            WatchUi.pushView(new ManageMenu(), new ManageMenuDelegate(), WatchUi.SLIDE_UP);
+        }
+    }
+
+    // Long-press UP also opens management on hardware that supports it.
     function onMenu() {
-        WatchUi.pushView(new ManageMenu(), new ManageMenuDelegate(), WatchUi.SLIDE_UP);
+        openManage();
         return true;
     }
 
