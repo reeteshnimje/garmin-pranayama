@@ -4,23 +4,30 @@ Offline Connect IQ watch app for building and running custom pranayama and medit
 
 ## Features
 
-- **Session builder** — pick from five activities (Anulom Vilom, Bhramari, Bhastrika, Kapalbhati, Meditation), order them, and tune each one's timing and repetitions.
-- **Guided runner** — color-coded progress ring around the bezel, phase countdown, per-phase vibration cues so the session works eyes-closed.
-- **Fully offline** — sessions are stored on the watch with `Application.Storage`; no phone or network needed.
+- **One press to practice** — the home screen is a quick-start card showing your last-used session; START begins it, UP/DOWN switches practices, MENU manages them.
+- **Session builder** — pick from five activities (Anulom Vilom, Bhramari, Bhastrika, Kapalbhati, Meditation), order them, and tune each one's timing and repetitions. New sessions are auto-named from their contents.
+- **Eyes-closed haptic language** — one short pulse for inhale, two quick pulses for hold, one long pulse for exhale, silence for pause. The whole session runs without looking at the screen.
+- **Breath-paced ring** — the bezel ring fills as you inhale, holds full, and drains as you exhale; timed activities count down.
+- **Settle-in countdown** — five quiet seconds before the first inhale.
+- **Pause and end-guard** — START pauses/resumes mid-session; BACK asks for confirmation before ending.
+- **Garmin Connect sync** — completed sessions are saved as Breathwork activities (FIT recording with heart rate). Sessions ended before one minute are discarded.
+- **Streaks** — practice history is kept on-watch; the home card and completion screen show your current streak.
+- **Starter presets** — first launch seeds "Morning Calm" (Anulom Vilom + meditation) and "Quick Reset" (Bhramari) so there's a practice ready immediately.
 
 ## Architecture
 
 | File | Responsibility |
 |---|---|
-| [source/App.mc](source/App.mc) | App lifecycle, entry view |
-| [source/Home.mc](source/Home.mc) | Home menu (native Menu2): saved sessions + New Session |
+| [source/App.mc](source/App.mc) | App lifecycle, preset seeding, entry view |
+| [source/Home.mc](source/Home.mc) | Quick-start card + management menu (native Menu2) |
 | [source/SessionMenu.mc](source/SessionMenu.mc) | Per-session actions: Start / Edit / Delete (with confirmation) |
 | [source/Builder.mc](source/Builder.mc) | Three-step builder flow: select activities → order → configure |
 | [source/NumberPicker.mc](source/NumberPicker.mc) | Full-screen value spinner (UP/DOWN adjust, START save) |
-| [source/Runner.mc](source/Runner.mc) | Session playback: ms-accurate phase timing, progress ring, haptics |
+| [source/Runner.mc](source/Runner.mc) | Playback: ms-accurate timing, breath-paced ring, pause, FIT recording |
+| [source/History.mc](source/History.mc) | Practice log and streak calculation |
 | [source/SessionMath.mc](source/SessionMath.mc) | Durations, defaults, field specs, normalization |
-| [source/SessionStore.mc](source/SessionStore.mc) | Persistence (Application.Storage) |
-| [source/Vibes.mc](source/Vibes.mc) | Vibration helpers |
+| [source/SessionStore.mc](source/SessionStore.mc) | Persistence, last-session tracking, starter presets |
+| [source/Vibes.mc](source/Vibes.mc) | Haptic language (per-phase vibration patterns) |
 | [source/Constants.mc](source/Constants.mc) | Activity types, storage keys, colors |
 
 Breath ratios follow the classical 1:4:2 pattern for Anulom Vilom (inhale : hold : exhale), derived from the configured inhale length.

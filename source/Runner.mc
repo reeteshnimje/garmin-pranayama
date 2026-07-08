@@ -2,6 +2,8 @@ using Toybox.WatchUi;
 using Toybox.Graphics;
 using Toybox.Timer;
 using Toybox.System;
+using Toybox.Activity;
+using Toybox.ActivityRecording;
 
 class RunnerView extends WatchUi.View {
     var session;
@@ -13,6 +15,11 @@ class RunnerView extends WatchUi.View {
     var timer;
     var completed;
     var lastPulseSecond;
+    var paused;
+    var pauseStartMs;
+    var pendingEnd;
+    var fitSession;
+    var finalStreakText;
 
     function initialize(selectedSession) {
         View.initialize();
@@ -25,11 +32,25 @@ class RunnerView extends WatchUi.View {
         timer = null;
         completed = false;
         lastPulseSecond = 0;
+        paused = false;
+        pauseStartMs = null;
+        pendingEnd = false;
+        fitSession = null;
+        finalStreakText = "";
+        SessionStore.setLastSession(selectedSession["id"]);
     }
 
     function onShow() {
+        if (pendingEnd) {
+            endEarly();
+            return;
+        }
         if (phaseStartMs == null) {
             startPhase();
+        } else if (!paused && pauseStartMs != null) {
+            // The view was hidden (e.g. end-session dialog); shift the anchor
+            // so hidden time doesn't count against the phase.
+            resumeClock();
         }
         if (timer == null && !completed) {
             timer = new Timer.Timer();
@@ -39,6 +60,9 @@ class RunnerView extends WatchUi.View {
 
     function onHide() {
         stopTimer();
+        if (!completed && !paused && pauseStartMs == null) {
+            pauseStartMs = System.getTimer();
+        }
     }
 
     function stopTimer() {
@@ -48,9 +72,50 @@ class RunnerView extends WatchUi.View {
         }
     }
 
-    function cancel() {
-        stopTimer();
-        WatchUi.popView(WatchUi.SLIDE_DOWN);
+    function resumeClock() {
+        if (pauseStartMs != null) {
+            phaseStartMs += System.getTimer() - pauseStartMs;
+            pauseStartMs = null;
+        }
+    }
+
+    function togglePause() {
+        if (completed) {
+            return;
+        }
+        if (paused) {
+            paused = false;
+            resumeClock();
+            if (fitSession != null) {
+                fitSession.start();
+            }
+        } else {
+            paused = true;
+            pauseStartMs = System.getTimer();
+            if (fitSession != null) {
+                fitSession.stop();
+            }
+        }
+        WatchUi.requestUpdate();
+    }
+
+    function currentElapsedMs(phase) {
+        if (phaseStartMs == null) {
+            return 0;
+        }
+        var reference = System.getTimer();
+        if (pauseStartMs != null) {
+            reference = pauseStartMs;
+        }
+        var elapsed = reference - phaseStartMs;
+        var durMs = phase["duration"] * 1000;
+        if (elapsed > durMs) {
+            elapsed = durMs;
+        }
+        if (elapsed < 0) {
+            elapsed = 0;
+        }
+        return elapsed;
     }
 
     function startPhase() {
@@ -63,21 +128,16 @@ class RunnerView extends WatchUi.View {
         phaseStartMs = System.getTimer();
         lastPulseSecond = 0;
 
-        var newActivity = true;
-        if (phaseIndex > 0) {
-            newActivity = !phases[phaseIndex - 1]["activity"].equals(phase["activity"]);
-        }
-        if (newActivity) {
-            Vibes.longPulse();
-        } else {
-            Vibes.shortPulse();
+        if (phase["kind"] != :ready && fitSession == null) {
+            startRecording();
         }
 
+        Vibes.cueForPhase(phase["kind"]);
         WatchUi.requestUpdate();
     }
 
     function onTick() as Void {
-        if (completed || phaseIndex >= phases.size()) {
+        if (completed || paused || pauseStartMs != null || phaseIndex >= phases.size()) {
             return;
         }
 
@@ -86,7 +146,9 @@ class RunnerView extends WatchUi.View {
         var elapsed = System.getTimer() - phaseStartMs;
 
         if (elapsed >= durMs) {
-            completedDuration += phase["duration"];
+            if (phase["kind"] != :ready) {
+                completedDuration += phase["duration"];
+            }
             phaseIndex += 1;
             startPhase();
             return;
@@ -109,8 +171,60 @@ class RunnerView extends WatchUi.View {
         }
         completed = true;
         stopTimer();
-        Vibes.longPulse();
+        finalizeRecording(true);
+        History.record(totalDuration);
+        finalStreakText = History.streakText();
+        Vibes.completeCue();
         WatchUi.requestUpdate();
+    }
+
+    function endEarly() {
+        stopTimer();
+
+        var practiced = completedDuration;
+        if (!completed && phaseIndex < phases.size()) {
+            var phase = phases[phaseIndex];
+            if (phase["kind"] != :ready) {
+                practiced += currentElapsedMs(phase) / 1000;
+            }
+        }
+
+        var worthKeeping = practiced >= 60;
+        finalizeRecording(worthKeeping);
+        if (worthKeeping) {
+            History.record(practiced);
+        }
+        WatchUi.popView(WatchUi.SLIDE_DOWN);
+    }
+
+    function startRecording() {
+        if (!(Toybox has :ActivityRecording)) {
+            return;
+        }
+        var options = { :name => "Pranayama" };
+        if (Activity has :SPORT_BREATHWORK) {
+            options[:sport] = Activity.SPORT_BREATHWORK;
+        } else {
+            options[:sport] = Activity.SPORT_GENERIC;
+        }
+        if (Activity has :SUB_SPORT_BREATHING) {
+            options[:subSport] = Activity.SUB_SPORT_BREATHING;
+        }
+        fitSession = ActivityRecording.createSession(options);
+        fitSession.start();
+    }
+
+    function finalizeRecording(keep) {
+        if (fitSession == null) {
+            return;
+        }
+        fitSession.stop();
+        if (keep) {
+            fitSession.save();
+        } else {
+            fitSession.discard();
+        }
+        fitSession = null;
     }
 
     function onUpdate(dc) {
@@ -138,23 +252,33 @@ class RunnerView extends WatchUi.View {
 
         var phase = phases[phaseIndex];
         var durMs = phase["duration"] * 1000;
-        var elapsed = 0;
-        if (phaseStartMs != null) {
-            elapsed = System.getTimer() - phaseStartMs;
-        }
-        if (elapsed > durMs) {
-            elapsed = durMs;
-        }
-
+        var elapsed = currentElapsedMs(phase);
+        var kind = phase["kind"];
+        var color = UiConstants.phaseColor(kind);
         var remainingSecs = (durMs - elapsed + 999) / 1000;
-        var color = UiConstants.phaseColor(phase["kind"]);
 
         dc.setPenWidth(12);
         dc.setColor(UiConstants.RING_BG, Graphics.COLOR_TRANSPARENT);
         dc.drawCircle(cx, cy, radius);
 
-        var remainingFrac = 1.0 - (elapsed.toFloat() / durMs);
-        var degrees = (360.0 * remainingFrac).toNumber();
+        // The ring breathes with you: fills on inhale, holds full, drains on
+        // exhale, stays empty during pauses. Timed activities drain like a
+        // countdown.
+        var frac = elapsed.toFloat() / durMs;
+        var sweep;
+        if (kind == :inhale) {
+            sweep = frac;
+        } else if (kind == :hold) {
+            sweep = 1.0;
+        } else if (kind == :exhale) {
+            sweep = 1.0 - frac;
+        } else if (kind == :pause) {
+            sweep = 0.0;
+        } else {
+            sweep = 1.0 - frac;
+        }
+
+        var degrees = (360.0 * sweep).toNumber();
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
         if (degrees >= 360) {
             dc.drawCircle(cx, cy, radius);
@@ -166,8 +290,14 @@ class RunnerView extends WatchUi.View {
         dc.drawText(cx, h * 0.15, Graphics.FONT_TINY, phase["activity"],
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.31, Graphics.FONT_MEDIUM, phase["label"],
+        var label = phase["label"];
+        var labelColor = color;
+        if (paused) {
+            label = "Paused";
+            labelColor = UiConstants.WARNING;
+        }
+        dc.setColor(labelColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 0.31, Graphics.FONT_MEDIUM, label,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         var countdown;
@@ -180,7 +310,10 @@ class RunnerView extends WatchUi.View {
         dc.drawText(cx, h * 0.52, Graphics.FONT_NUMBER_MEDIUM, countdown,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        var totalRemaining = totalDuration - completedDuration - (elapsed / 1000);
+        var totalRemaining = totalDuration - completedDuration;
+        if (kind != :ready) {
+            totalRemaining -= elapsed / 1000;
+        }
         if (totalRemaining < 0) {
             totalRemaining = 0;
         }
@@ -189,7 +322,11 @@ class RunnerView extends WatchUi.View {
             SessionMath.formatDuration(totalRemaining) + " left",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        dc.drawText(cx, h * 0.85, Graphics.FONT_XTINY, "BACK to stop",
+        var hint = "START pause";
+        if (paused) {
+            hint = "START resume - BACK end";
+        }
+        dc.drawText(cx, h * 0.85, Graphics.FONT_XTINY, hint,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
@@ -199,25 +336,27 @@ class RunnerView extends WatchUi.View {
         dc.drawCircle(cx, cy, radius);
 
         dc.setColor(UiConstants.ACCENT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.34, Graphics.FONT_MEDIUM, "Complete",
+        dc.drawText(cx, h * 0.32, Graphics.FONT_MEDIUM, "Complete",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         dc.setColor(UiConstants.FG, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.52, Graphics.FONT_NUMBER_MEDIUM, SessionMath.formatDuration(totalDuration),
+        dc.drawText(cx, h * 0.50, Graphics.FONT_NUMBER_MEDIUM, SessionMath.formatDuration(totalDuration),
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         dc.setColor(UiConstants.MUTED, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.70, Graphics.FONT_TINY, session["name"],
+        dc.drawText(cx, h * 0.68, Graphics.FONT_TINY, finalStreakText,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        dc.drawText(cx, h * 0.85, Graphics.FONT_XTINY, "BACK to exit",
+        dc.drawText(cx, h * 0.84, Graphics.FONT_XTINY, "BACK to exit",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     function buildPhases(selectedSession) {
         var result = [];
-        var activities = selectedSession["activities"];
 
+        result.add(phaseEntry(selectedSession["name"], "Settle in", :ready, 5));
+
+        var activities = selectedSession["activities"];
         for (var i = 0; i < activities.size(); i += 1) {
             var activity = activities[i];
             var type = activity["type"];
@@ -275,8 +414,34 @@ class RunnerDelegate extends WatchUi.BehaviorDelegate {
         view = runnerView;
     }
 
+    function onSelect() {
+        view.togglePause();
+        return true;
+    }
+
     function onBack() {
-        view.cancel();
+        if (view.completed) {
+            WatchUi.popView(WatchUi.SLIDE_DOWN);
+            return true;
+        }
+        var dialog = new WatchUi.Confirmation("End session?");
+        WatchUi.pushView(dialog, new EndSessionDelegate(view), WatchUi.SLIDE_UP);
+        return true;
+    }
+}
+
+class EndSessionDelegate extends WatchUi.ConfirmationDelegate {
+    var view;
+
+    function initialize(runnerView) {
+        ConfirmationDelegate.initialize();
+        view = runnerView;
+    }
+
+    function onResponse(response) {
+        if (response == WatchUi.CONFIRM_YES) {
+            view.pendingEnd = true;
+        }
         return true;
     }
 }

@@ -101,11 +101,24 @@ class BuilderState {
         if (editingSession == null) {
             session = SessionStore.newSession([]);
             session["activities"] = activities;
+            session["name"] = autoName();
         } else {
             editingSession["activities"] = activities;
             session = editingSession;
         }
         SessionStore.save(session);
+        SessionStore.setLastSession(session["id"]);
+    }
+
+    function autoName() {
+        if (activities.size() == 1) {
+            return ActivityTypes.name(activities[0]["type"]);
+        }
+        if (activities.size() == 2) {
+            return ActivityTypes.shortName(activities[0]["type"]) + " + "
+                + ActivityTypes.shortName(activities[1]["type"]);
+        }
+        return "Full Practice";
     }
 }
 

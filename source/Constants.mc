@@ -27,11 +27,26 @@ module ActivityTypes {
         }
         return "Meditation";
     }
+
+    function shortName(type) {
+        if (type == ANULOM_VILOM) {
+            return "Anulom";
+        } else if (type == BHRAMARI) {
+            return "Bhramari";
+        } else if (type == BHASTRIKA) {
+            return "Bhastrika";
+        } else if (type == KAPALBHATI) {
+            return "Kapalbhati";
+        }
+        return "Sit";
+    }
 }
 
 module StorageKeys {
     const SESSIONS = "sessions";
     const NEXT_ID = "nextSessionId";
+    const LAST_SESSION = "lastSessionId";
+    const HISTORY = "history";
 }
 
 module VibrationConstants {

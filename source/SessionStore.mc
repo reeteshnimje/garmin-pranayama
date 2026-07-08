@@ -29,9 +29,41 @@ class SessionStore {
         return null;
     }
 
-    static function nextName() {
+    static function setLastSession(sessionId) {
+        Storage.setValue(StorageKeys.LAST_SESSION, sessionId);
+    }
+
+    static function lastSessionId() {
+        return Storage.getValue(StorageKeys.LAST_SESSION);
+    }
+
+    // Seed two starter practices on first launch so the app is never an
+    // empty list. Skipped if the user has ever created or deleted sessions.
+    static function seedPresets() {
         ensureSeedData();
-        return "Session " + Storage.getValue(StorageKeys.NEXT_ID);
+        if (all().size() > 0 || Storage.getValue(StorageKeys.NEXT_ID) != 1) {
+            return;
+        }
+
+        var morning = newSession([]);
+        morning["name"] = "Morning Calm";
+        morning["activities"] = [
+            SessionMath.normalizedActivity(ActivityTypes.ANULOM_VILOM,
+                { "inhale" => 4, "pause" => 0, "reps" => 6 }),
+            SessionMath.normalizedActivity(ActivityTypes.MEDITATION,
+                { "duration" => 300 })
+        ];
+        save(morning);
+
+        var reset = newSession([]);
+        reset["name"] = "Quick Reset";
+        reset["activities"] = [
+            SessionMath.normalizedActivity(ActivityTypes.BHRAMARI,
+                { "inhale" => 4, "reps" => 10 })
+        ];
+        save(reset);
+
+        setLastSession(morning["id"]);
     }
 
     static function save(session) {
@@ -81,7 +113,7 @@ class SessionStore {
 
         return {
             "id" => "session-" + idNumber,
-            "name" => nextName(),
+            "name" => "Practice " + idNumber,
             "activities" => activities
         };
     }
