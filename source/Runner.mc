@@ -201,14 +201,19 @@ class RunnerView extends WatchUi.View {
         if (!(Toybox has :ActivityRecording)) {
             return;
         }
+        // SPORT_BREATHING makes Connect render this as a breathwork activity
+        // (duration, heart rate, respiration) instead of "Other" with the
+        // distance/speed/ascent metrics a run or walk would show.
         var options = { :name => "Pranayama" };
-        if (Activity has :SPORT_BREATHWORK) {
-            options[:sport] = Activity.SPORT_BREATHWORK;
+        if (Activity has :SPORT_BREATHING) {
+            options[:sport] = Activity.SPORT_BREATHING;
+            if (Activity has :SUB_SPORT_BREATHING) {
+                options[:subSport] = Activity.SUB_SPORT_BREATHING;
+            }
+        } else if (Activity has :SPORT_MEDITATION) {
+            options[:sport] = Activity.SPORT_MEDITATION;
         } else {
             options[:sport] = Activity.SPORT_GENERIC;
-        }
-        if (Activity has :SUB_SPORT_BREATHING) {
-            options[:subSport] = Activity.SUB_SPORT_BREATHING;
         }
         fitSession = ActivityRecording.createSession(options);
         fitSession.start();
