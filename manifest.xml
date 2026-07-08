@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <iq:application
+        id="DDA49BAD-2763-464B-976A-655751423C08"
+        type="watch-app"
+        name="@Strings.AppName"
+        entry="PranayamaApp"
+        launcherIcon="@Drawables.LauncherIcon"
+        minApiLevel="5.2.0">
+        <iq:products>
+            <iq:product id="fr265" />
+        </iq:products>
+        <iq:permissions />
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+    </iq:application>
+</iq:manifest>

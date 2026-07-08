@@ -1,0 +1,13 @@
+# Build output
+bin/
+
+# Signing keys — never commit these
+developer_key
+developer_key.der
+*.der
+
+# Connect IQ / IDE artifacts
+.DS_Store
+*.iq
+.vscode/
+gen/
